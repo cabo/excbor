@@ -171,12 +171,12 @@ defmodule(CBORTest) do
   end
   test("RFC 7049 Appendix A Example 32") do
     encoded = <<249, 124, 0>>
-    assert(d(encoded) == {CBOR.Tag, :float, :"inf"})
+    assert(d(encoded) == {CBOR.Tag, :float, :inf})
     assert(CBOR.encode(d(encoded)) == encoded)
   end
   test("RFC 7049 Appendix A Example 33") do
     encoded = <<249, 126, 0>>
-    assert(d(encoded) == {CBOR.Tag, :float, :"nan"})
+    assert(d(encoded) == {CBOR.Tag, :float, :nan})
     assert(CBOR.encode(d(encoded)) == encoded)
   end
   test("RFC 7049 Appendix A Example 34") do
@@ -186,12 +186,12 @@ defmodule(CBORTest) do
   end
   test("RFC 7049 Appendix A Example 35") do
     encoded = <<250, 127, 128, 0, 0>>
-    assert(d(encoded) == {CBOR.Tag, :float, :"inf"})
+    assert(d(encoded) == {CBOR.Tag, :float, :inf})
     # (no roundtrip)
   end
   test("RFC 7049 Appendix A Example 36") do
     encoded = <<250, 127, 192, 0, 0>>
-    assert(d(encoded) == {CBOR.Tag, :float, :"nan"})
+    assert(d(encoded) == {CBOR.Tag, :float, :nan})
     # (no roundtrip)
   end
   test("RFC 7049 Appendix A Example 37") do
@@ -201,12 +201,12 @@ defmodule(CBORTest) do
   end
   test("RFC 7049 Appendix A Example 38") do
     encoded = <<251, 127, 240, 0, 0, 0, 0, 0, 0>>
-    assert(d(encoded) == {CBOR.Tag, :float, :"inf"})
+    assert(d(encoded) == {CBOR.Tag, :float, :inf})
     # (no roundtrip)
   end
   test("RFC 7049 Appendix A Example 39") do
     encoded = <<251, 127, 248, 0, 0, 0, 0, 0, 0>>
-    assert(d(encoded) == {CBOR.Tag, :float, :"nan"})
+    assert(d(encoded) == {CBOR.Tag, :float, :nan})
     # (no roundtrip)
   end
   test("RFC 7049 Appendix A Example 40") do
