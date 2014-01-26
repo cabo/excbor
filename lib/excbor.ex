@@ -121,12 +121,14 @@ defmodule CBOR do
   end
   defp decode_array(0, rest, _), do: {[], rest}
   defp decode_array(len, rest, treatment) do
-    {acc, new_rest} =
-    Enum.reduce(1..len, {[], rest}, fn(_i, {acc, bin}) ->
-      {value, bin_rest} = decode_with_rest(bin, treatment)
-      {[value|acc], bin_rest}
-    end)
-    {Enum.reverse(acc), new_rest}
+    decode_array1(len, treatment, [], rest)
+  end
+  defp decode_array1(0, treatment, acc, bin) do
+    {Enum.reverse(acc), bin}
+  end
+  defp decode_array1(len, treatment, acc, bin) do
+    {value, bin_rest} = decode_with_rest(bin, treatment)
+    decode_array1(len - 1, treatment, [value|acc], bin_rest)
   end
   defp decode_array_indefinite(rest, treatment, acc) do
     case rest do
@@ -139,13 +141,15 @@ defmodule CBOR do
   end
   defp decode_map(0, rest, treatment), do: {treatment.map.empty_map.(), rest}
   defp decode_map(len, rest, treatment) do
-    {acc, new_rest} =
-    Enum.reduce(1..len, {treatment.map.newmap.(), rest}, fn(_i, {acc, bin}) ->
-      {key, bin_rest} = decode_with_rest(bin, treatment)
-      {value, bin_rest} = decode_with_rest(bin_rest, treatment)
-      {treatment.map.add_to_map.(acc, key, value), bin_rest}
-    end)
-    {treatment.map.finish_map.(acc), new_rest}
+    decode_map1(len, treatment, treatment.map.newmap.(), rest)
+  end
+  defp decode_map1(0, treatment, acc, bin) do
+    {treatment.map.finish_map.(acc), bin}
+  end
+  defp decode_map1(len, treatment, acc, bin) do
+    {key, bin_rest} = decode_with_rest(bin, treatment)
+    {value, bin_rest} = decode_with_rest(bin_rest, treatment)
+    decode_map1(len - 1, treatment, treatment.map.add_to_map.(acc, key, value), bin_rest)
   end
   defp decode_map_indefinite(rest, treatment, acc) do
     case rest do
