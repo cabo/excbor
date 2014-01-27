@@ -167,94 +167,92 @@ defmodule CBOR do
     end
   end
   # --------------------
-  def encode_head(mt, val) when val < 24, do: << mt::size(3), val::size(5) >>
-  def encode_head(mt, val) when val < 0x100 do
-    << mt::size(3), 24::size(5), val::[unsigned, size(8)] >>
+  def encode_head(mt, val, acc) when val < 24, do: << acc::binary, mt::size(3), val::size(5) >>
+  def encode_head(mt, val, acc) when val < 0x100 do
+    << acc::binary, mt::size(3), 24::size(5), val::[unsigned, size(8)] >>
   end
-  def encode_head(mt, val) when val < 0x10000 do
-    << mt::size(3), 25::size(5), val::[unsigned, size(16)] >>
+  def encode_head(mt, val, acc) when val < 0x10000 do
+    << acc::binary, mt::size(3), 25::size(5), val::[unsigned, size(16)] >>
   end
-  def encode_head(mt, val) when val < 0x100000000 do
-    << mt::size(3), 26::size(5), val::[unsigned, size(32)] >>
+  def encode_head(mt, val, acc) when val < 0x100000000 do
+    << acc::binary, mt::size(3), 26::size(5), val::[unsigned, size(32)] >>
   end
-  def encode_head(mt, val) when val < 0x10000000000000000 do
-    << mt::size(3), 27::size(5), val::[unsigned, size(64)] >>
+  def encode_head(mt, val, acc) when val < 0x10000000000000000 do
+    << acc::binary, mt::size(3), 27::size(5), val::[unsigned, size(64)] >>
   end
-  def encode_head_indefinite(mt), do: << mt::size(3), 31::size(5) >>
-  def encode_string(mt, s), do: << CBOR.encode_head(mt, byte_size(s)) :: binary, s :: binary >>
-  def encode_tag(tag, cb), do: << CBOR.encode_head(6, tag) :: binary, cb :: binary >>
-  def encode(v), do: CBOR.Encoder.encode(v)
+  def encode_head_indefinite(mt, acc), do: << acc::binary, mt::size(3), 31::size(5) >>
+  def encode_string(mt, s, acc), do: << CBOR.encode_head(mt, byte_size(s), acc) :: binary, s :: binary >>
+  def encode(v), do: CBOR.Encoder.encode_into(v, <<>>)
+  def encode_into(v, acc), do: CBOR.Encoder.encode_into(v, acc)
   defprotocol Encoder do
-    def encode(element)
+    def encode_into(element, acc)
   end
   defimpl Encoder, for: Integer do
-    def encode(i) when i >= 0 and i < 0x10000000000000000, do: CBOR.encode_head(0, i)
-    def encode(i) when i < 0 and i >= -0x10000000000000000, do: CBOR.encode_head(1, -i-1)
-    def encode(i) when i >= 0 , do: encode_as_bignum(i, 2)
-    def encode(i) when i < 0 , do: encode_as_bignum(-i-1, 3)
-    defp encode_as_bignum(i, tag) do
+    def encode_into(i, acc) when i >= 0 and i < 0x10000000000000000, do: CBOR.encode_head(0, i, acc)
+    def encode_into(i, acc) when i < 0 and i >= -0x10000000000000000, do: CBOR.encode_head(1, -i - 1, acc)
+    def encode_into(i, acc) when i >= 0, do: encode_as_bignum(i, 2, acc)
+    def encode_into(i, acc) when i < 0, do: encode_as_bignum(-i - 1, 3, acc)
+    defp encode_as_bignum(i, tag, acc) do
       s = case :erlang.term_to_binary(i) do
         <<131, 110, _, 0, s::binary>> -> s
         <<131, 111, _, _, _, _, 0, s::binary>> -> s
       end
       s = iolist_to_binary(:lists.reverse(lc <<b>> inbits s do b end))
-      CBOR.encode_tag(tag, CBOR.encode_string(2, s))
+      CBOR.encode_string(2, s, CBOR.encode_head(6, tag, acc))
     end
   end
   defimpl Encoder, for: Float do
     # def encode(x), do: << 0xfb, x::[float, size(64)] >>  # that would be fast
-    def encode(x) do
+    def encode_into(x, acc) do
       try1 = << x::[float, size(32)] >> # beware: this may be an infinite
       case try1 do
         << ^x::[float, size(32)] >> -> # infinites are caught here
           case try1 do
             << sign::size(1), 0::size(31) >> -> # +0.0, -0.0
-              << 0xf9, sign::size(1), 0::size(15) >>
+              << acc::binary, 0xf9, sign::size(1), 0::size(15) >>
             << sign::size(1), exp::size(8), mant1::size(10), 0::size(13) >>
             when exp > 112 and exp < 143 -> # don't try to generate denormalized binary16
-              << 0xf9, sign::size(1), (exp-112)::size(5), mant1::size(10) >>
-            _ -> << 0xfa, try1::binary >>
+              << acc::binary, 0xf9, sign::size(1), (exp-112)::size(5), mant1::size(10) >>
+            _ -> << acc::binary, 0xfa, try1::binary >>
           end
-        _ -> << 0xfb, x::[float, size(64)] >>
+        _ -> << acc::binary, 0xfb, x::[float, size(64)] >>
       end
     end
   end
   defimpl Encoder, for: Atom do
-    def encode(false), do: << 0xf4 >>
-    def encode(true), do: << 0xf5 >>
-    def encode(nil), do: << 0xf6 >> # XXX : what about other atoms?
+    def encode_into(false, acc), do: << acc::binary, 0xf4 >>
+    def encode_into(true, acc), do: << acc::binary, 0xf5 >>
+    def encode_into(nil, acc), do: << acc::binary, 0xf6 >> # XXX : what about other atoms?
   end
   defimpl Encoder, for: BitString do # XXX add treatments?
-    def encode(s), do: CBOR.encode_string(3, s)
+    def encode_into(s, acc), do: CBOR.encode_string(3, s, acc)
   end
   defimpl Encoder, for: CBOR.Tag do
-    def encode({CBOR.Tag, :bytes, s}), do: CBOR.encode_string(2, s)
-    def encode({CBOR.Tag, :float, :inf}), do: << 0xf9, 0x7c, 0 >>
-    def encode({CBOR.Tag, :float, :"-inf"}), do: << 0xf9, 0xfc, 0 >>
-    def encode({CBOR.Tag, :float, :nan}), do: << 0xf9, 0x7e, 0 >>
-    def encode({CBOR.Tag, :simple, val}) when val < 0x100, do: CBOR.encode_head(7, val)
-    def encode({CBOR.Tag, tag, val}), do: CBOR.encode_tag(tag, CBOR.Encoder.encode(val))
+    def encode_into({CBOR.Tag, :bytes, s}, acc), do: CBOR.encode_string(2, s, acc)
+    def encode_into({CBOR.Tag, :float, :inf}, acc), do: << acc::binary, 0xf9, 0x7c, 0 >>
+    def encode_into({CBOR.Tag, :float, :"-inf"}, acc), do: << acc::binary, 0xf9, 0xfc, 0 >>
+    def encode_into({CBOR.Tag, :float, :nan}, acc), do: << acc::binary, 0xf9, 0x7e, 0 >>
+    def encode_into({CBOR.Tag, :simple, val}, acc) when val < 0x100, do: CBOR.encode_head(7, val, acc)
+    def encode_into({CBOR.Tag, tag, val}, acc), do: CBOR.Encoder.encode_into(val, CBOR.encode_head(6, tag, acc))
   end
   defimpl Encoder, for: HashDict do
-    def encode(dict) do
-      iolist_to_binary([ << CBOR.encode_head(5, Dict.size(dict))::binary >> |
-                         (Enum.map(dict, fn({k, v}) ->
-                                             << (CBOR.Encoder.encode(k)) :: binary,
-                                             (CBOR.Encoder.encode(v)) :: binary >> end))])
+    def encode_into(dict, acc) do
+      Enum.reduce(dict, CBOR.encode_head(5, Dict.size(dict), acc),
+                        fn({k, v}, acc) ->
+                           CBOR.Encoder.encode_into(v, CBOR.Encoder.encode_into(k, acc)) end)
     end
   end
   defimpl Encoder, for: List do
-    def encode([]), do: << 0x80 >>
-    def encode([{}]), do: << 0xa0 >> # treat as map
-    def encode(map = [{_,_}|_]) do   # treat as map
-      << CBOR.encode_head(5, length(map))::binary,
-         bc {key, value} inlist map do
-        << (CBOR.Encoder.encode(key)) :: binary, (CBOR.Encoder.encode(value)) :: binary >>
-      end :: binary >>
+    def encode_into([], acc), do: << acc::binary, 0x80 >>
+    def encode_into([{}], acc), do: << acc::binary, 0xa0 >> # treat as map
+    def encode_into(map = [{_,_}|_], acc) do   # treat as map
+      Enum.reduce(map, CBOR.encode_head(5, length(map), acc),
+                       fn({k, v}, acc) ->
+                           CBOR.Encoder.encode_into(v, CBOR.Encoder.encode_into(k, acc)) end)
     end
-    def encode(list) do
-      << CBOR.encode_head(4, length(list))::binary,
-              (bc el inlist list, do: << CBOR.Encoder.encode(el) :: binary >>) :: binary >>
+    def encode_into(list, acc) do
+      Enum.reduce(list, CBOR.encode_head(4, length(list), acc),
+                        fn(v, acc) -> CBOR.Encoder.encode_into(v, acc) end)
     end
   end
   # defimpl Encoder, for: Tuple do      # anything else we can do here?
