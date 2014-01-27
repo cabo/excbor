@@ -14,6 +14,13 @@ defmodule(CBORTest) do
   test("too little data") do
     assert_raise(CaseClauseError, fn -> d("") == 1 end)
   end
+  test("tag treatment") do
+    tag1treat = fn _, v, _ -> {:time, v} end
+    treatment = CBOR.Decoder.Treatment[tags: [{1, tag1treat}]]
+    assert(CBOR.decode(CBOR.encode({CBOR.Tag, 1, 1390794964}), treatment) == {:time, 1390794964})
+    unknowntag = {CBOR.Tag, 4711, 1390794964}
+    assert(CBOR.decode(CBOR.encode(unknowntag), treatment) == unknowntag)
+  end
   test("RFC 7049 Appendix A Example 1") do
     encoded = <<0>>
     assert(d(encoded) == 0)

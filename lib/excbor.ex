@@ -4,14 +4,12 @@ defrecord CBOR.Decoder.Treatment.Map,
                             add_to_map: &CBOR.default_add_to_map/3,
                             finish_map: &CBOR.default_finish_map/1,
                             empty_map: &CBOR.default_empty_map/0
-defrecord CBOR.Decoder.Treatment.Tags,
-                            dict: [] # XXX
 defrecord CBOR.Decoder.Treatment,
                   text: &CBOR.identity/1,
-                  bytes: &CBOR.mark_bytes/1,
+                  bytes: &CBOR.mark_as_bytes/1,
                   nonfinites: &CBOR.decode_non_finite/2,
                   map: CBOR.Decoder.Treatment.Map.new,
-                  tags: CBOR.Decoder.Treatment.Tags.new
+                  tags: []
 defmodule CBOR do
   def decode_non_finite(0, 0), do: {CBOR.Tag, :float, :inf}
   def decode_non_finite(1, 0), do: {CBOR.Tag, :float, :"-inf"}
@@ -23,7 +21,7 @@ defmodule CBOR do
   def hash_add_to_map(map, k, v), do: HashDict.put(map, k, v)
   def hash_empty_map(), do: HashDict.new
   def identity(x), do: x
-  def mark_bytes({x,rest}), do: {{CBOR.Tag, :bytes, x}, rest}
+  def mark_as_bytes({x,rest}), do: {{CBOR.Tag, :bytes, x}, rest}
   @default_treatment CBOR.Decoder.Treatment.new
   @hash_treatment_map CBOR.Decoder.Treatment.Map[
                               newmap: &CBOR.hash_empty_map/0,
@@ -70,13 +68,13 @@ defmodule CBOR do
             {decode_tag(val, inner, treatment), rest}
           7 -> case bin do
                  << 0xf9, sign::size(1), exp::size(5), mant::size(10),
-                    _::binary >> -> {decode_half(sign, exp, mant), rest}
+                    _::binary >> -> {decode_half(sign, exp, mant, treatment), rest}
                  << 0xfa, value::[float, size(32)], _::binary >> -> {value, rest}
                  << 0xfa, sign::size(1), 255::size(8), mant::size(23),
-                    _::binary >> -> {decode_non_finite(sign, mant), rest}
+                    _::binary >> -> {treatment.nonfinites.(sign, mant), rest}
                  << 0xfb, value::[float, size(64)], _::binary >> -> {value, rest}
                  << 0xfb, sign::size(1), 2047::size(11), mant::size(52),
-                    _::binary >> -> {decode_non_finite(sign, mant), rest}
+                    _::binary >> -> {treatment.nonfinites.(sign, mant), rest}
                  _ -> case val do
                         20 -> {false, rest}
                         21 -> {true, rest}
@@ -87,8 +85,8 @@ defmodule CBOR do
         end
     end
   end
-  defp decode_half(sign, 31, mant), do: decode_non_finite(sign, mant)
-  defp decode_half(sign, exp, mant) do
+  defp decode_half(sign, 31, mant, treatment), do: treatment.nonfinites.(sign, mant)
+  defp decode_half(sign, exp, mant, _) do
     << value::[float, size(32)] >> =
       << sign::size(1), exp::size(8), mant::size(10), 0::size(13) >>
     value * 5192296858534827628530496329220096.0 # 2**112 -- difference in bias
@@ -104,8 +102,11 @@ defmodule CBOR do
     <<res::[integer,unsigned,size(sz),unit(8)]>> = bytes
     res
   end
-  defp decode_tag(tag, value, _) do
-    {CBOR.Tag, tag, value}
+  defp decode_tag(tag, value, treatment) do
+    case treatment.tags[tag] do
+      nil -> {CBOR.Tag, tag, value}
+      fun -> fun.(tag, value, treatment)
+    end
   end
   defp decode_string(rest, len) do
     << value::[binary, size(len)], new_rest::binary >> = rest
