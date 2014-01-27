@@ -29,16 +29,17 @@ defmodule CBOR do
                               finish_map: &CBOR.identity/1,
                               empty_map: &CBOR.hash_empty_map/0]
   @hash_treatment CBOR.Decoder.Treatment[map: @hash_treatment_map]
-  def decode_header(bin) do
-    case bin do
-      << mt::size(3), val::size(5), rest::binary >> when val < 24 -> {mt, val, rest}
-      << mt::size(3), 24::size(5), val::[unsigned, size(8)], rest::binary >> -> {mt, val, rest}
-      << mt::size(3), 25::size(5), val::[unsigned, size(16)], rest::binary >> -> {mt, val, rest}
-      << mt::size(3), 26::size(5), val::[unsigned, size(32)], rest::binary >> -> {mt, val, rest}
-      << mt::size(3), 27::size(5), val::[unsigned, size(64)], rest::binary >> -> {mt, val, rest}
-      << mt::size(3), 31::size(5), rest::binary >> -> {mt, :indefinite, rest}
-    end
-  end
+  def decode_header(<< mt::size(3), val::size(5),
+                    rest::binary >>) when val < 24, do: {mt, val, rest}
+  def decode_header(<< mt::size(3), 24::size(5),
+                    val::[unsigned, size(8)], rest::binary >>), do: {mt, val, rest}
+  def decode_header(<< mt::size(3), 25::size(5),
+                    val::[unsigned, size(16)], rest::binary >>), do: {mt, val, rest}
+  def decode_header(<< mt::size(3), 26::size(5),
+                    val::[unsigned, size(32)], rest::binary >>), do: {mt, val, rest}
+  def decode_header(<< mt::size(3), 27::size(5),
+                    val::[unsigned, size(64)], rest::binary >>), do: {mt, val, rest}
+  def decode_header(<< mt::size(3), 31::size(5), rest::binary >>), do: {mt, :indefinite, rest}
   def decode_with_hashes(bin), do: decode(bin, @hash_treatment)
   def decode(bin, treatment // @default_treatment) do
     {term, ""} = decode_with_rest(bin, treatment)

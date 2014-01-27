@@ -12,7 +12,7 @@ defmodule(CBORTest) do
     assert(CBOR.decode_with_rest(CBOR.encode(1) <> "foo") == {1, "foo"})
   end
   test("too little data") do
-    assert_raise(CaseClauseError, fn -> d("") == 1 end)
+    assert_raise(FunctionClauseError, fn -> d("") == 1 end)
   end
   test("tag treatment") do
     tag1treat = fn _, v, _ -> {:time, v} end
