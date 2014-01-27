@@ -1,5 +1,7 @@
 # ExCBOR
 
+[![Build Status](https://travis-ci.org/cabo/excbor.png?branch=master)](https://travis-ci.org/cabo/excbor)
+
 Implementation of RFC 7049 [CBOR](http://cbor.io) (Concise Binary
 Object Representation) for Elixir.
 
