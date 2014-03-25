@@ -14,10 +14,10 @@ defmodule CBOR do
   def decode_non_finite(0, 0), do: {CBOR.Tag, :float, :inf}
   def decode_non_finite(1, 0), do: {CBOR.Tag, :float, :"-inf"}
   def decode_non_finite(_, _), do: {CBOR.Tag, :float, :nan}
-  def default_newmap(), do: []
-  def default_add_to_map(map, k, v), do: [{k,v}|map]
-  def default_finish_map(map), do: Enum.reverse(map)
-  def default_empty_map(), do: [{}]
+  def default_newmap(), do: %{}
+  def default_add_to_map(map, k, v), do: Dict.put(map, k, v)
+  def default_finish_map(map), do: map
+  def default_empty_map(), do: %{}
   def hash_add_to_map(map, k, v), do: HashDict.put(map, k, v)
   def hash_empty_map(), do: HashDict.new
   def identity(x), do: x
@@ -253,6 +253,13 @@ defmodule CBOR do
     def encode_into(list, acc) do
       Enum.reduce(list, CBOR.encode_head(4, length(list), acc),
                         fn(v, acc) -> CBOR.Encoder.encode_into(v, acc) end)
+    end
+  end
+  defimpl Encoder, for: Map do
+    def encode_into(dict, acc) do
+      Enum.reduce(dict, CBOR.encode_head(5, Dict.size(dict), acc),
+                        fn({k, v}, acc) ->
+                           CBOR.Encoder.encode_into(v, CBOR.Encoder.encode_into(k, acc)) end)
     end
   end
   # defimpl Encoder, for: Tuple do      # anything else we can do here?
