@@ -41,12 +41,12 @@ defmodule CBOR do
                     val::[unsigned, size(64)], rest::binary >>), do: {mt, val, rest}
   def decode_header(<< mt::size(3), 31::size(5), rest::binary >>), do: {mt, :indefinite, rest}
   def decode_with_hashes(bin), do: decode(bin, @hash_treatment)
-  def decode(bin, treatment // @default_treatment) do
+  def decode(bin, treatment \\ @default_treatment) do
     {term, ""} = decode_with_rest(bin, treatment)
     term
   end
   def decode_with_hashes_with_rest(bin), do: decode_with_rest(bin, @hash_treatment)
-  def decode_with_rest(bin, treatment // @default_treatment) do
+  def decode_with_rest(bin, treatment \\ @default_treatment) do
     {mt, val, rest} = decode_header(bin)
     case val do
       :indefinite ->
@@ -125,7 +125,7 @@ defmodule CBOR do
   defp decode_array(len, rest, treatment) do
     decode_array1(len, treatment, [], rest)
   end
-  defp decode_array1(0, treatment, acc, bin) do
+  defp decode_array1(0, _treatment, acc, bin) do
     {Enum.reverse(acc), bin}
   end
   defp decode_array1(len, treatment, acc, bin) do
