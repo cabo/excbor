@@ -353,27 +353,27 @@ defmodule(CBORTest) do
   end
   test("RFC 7049 Appendix A Example 67") do
     encoded = <<160>>
-    assert(d(encoded) == [{}])
+    assert(d(encoded) == %{})
     assert(CBOR.encode(d(encoded)) == encoded)
   end
   test("RFC 7049 Appendix A Example 68") do
     encoded = <<162, 1, 2, 3, 4>>
-    assert(d(encoded) == [{1, 2}, {3, 4}])
+    assert(d(encoded) == %{1 => 2, 3 => 4})
     assert(CBOR.encode(d(encoded)) == encoded)
   end
   test("RFC 7049 Appendix A Example 69") do
     encoded = <<162, 97, 97, 1, 97, 98, 130, 2, 3>>
-    assert(d(encoded) == [{"a", 1}, {"b", [2, 3]}])
+    assert(d(encoded) == %{"a" => 1, "b" => [2, 3]})
     assert(CBOR.encode(d(encoded)) == encoded)
   end
   test("RFC 7049 Appendix A Example 70") do
     encoded = <<130, 97, 97, 161, 97, 98, 97, 99>>
-    assert(d(encoded) == ["a", [{"b", "c"}]])
+    assert(d(encoded) == ["a", %{"b" => "c"}])
     assert(CBOR.encode(d(encoded)) == encoded)
   end
   test("RFC 7049 Appendix A Example 71") do
     encoded = <<165, 97, 97, 97, 65, 97, 98, 97, 66, 97, 99, 97, 67, 97, 100, 97, 68, 97, 101, 97, 69>>
-    assert(d(encoded) == [{"a", "A"}, {"b", "B"}, {"c", "C"}, {"d", "D"}, {"e", "E"}])
+    assert(d(encoded) == %{"a" => "A", "b" => "B", "c" => "C", "d" => "D", "e" => "E"})
     assert(CBOR.encode(d(encoded)) == encoded)
   end
   test("RFC 7049 Appendix A Example 72") do
@@ -418,17 +418,17 @@ defmodule(CBORTest) do
   end
   test("RFC 7049 Appendix A Example 80") do
     encoded = <<191, 97, 97, 1, 97, 98, 159, 2, 3, 255, 255>>
-    assert(d(encoded) == [{"a", 1}, {"b", [2, 3]}])
+    assert(d(encoded) == %{"a" => 1, "b" => [2, 3]})
     # (no roundtrip)
   end
   test("RFC 7049 Appendix A Example 81") do
     encoded = <<130, 97, 97, 191, 97, 98, 97, 99, 255>>
-    assert(d(encoded) == ["a", [{"b", "c"}]])
+    assert(d(encoded) == ["a", %{"b" => "c"}])
     # (no roundtrip)
   end
   test("RFC 7049 Appendix A Example 82") do
     encoded = <<191, 99, 70, 117, 110, 245, 99, 65, 109, 116, 33, 255>>
-    assert(d(encoded) == [{"Fun", true}, {"Amt", -2}])
+    assert(d(encoded) == %{"Fun" => true, "Amt" => -2})
     # (no roundtrip)
   end
 end
